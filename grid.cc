@@ -1649,22 +1649,17 @@ static void read_grid_restart_data(const int timestep)
   assert_always(ntstep_in == globals::ntstep);
 
   int nprocs_in = -1;
-  assert_always(fscanf(gridsave_file, "%d ", &nprocs_in) == 1);
+  assert_always(fscanf(gridsave_file, " %d ", &nprocs_in) == 1);
   assert_always(nprocs_in == globals::nprocs);
 
   int nthreads_in = -1;
   assert_always(fscanf(gridsave_file, "%d ", &nthreads_in) == 1);
   assert_always(nthreads_in == get_num_threads());
 
-  for (int nts = 0; nts < globals::ntstep; nts++)
-  {
-    assert_always(fscanf(
-      gridsave_file, "%la %la %la %la %la ", &globals::time_step[nts].gamma_dep, &globals::time_step[nts].positron_dep,
-      &globals::time_step[nts].electron_dep, &globals::time_step[nts].alpha_dep, &globals::time_step[nts].gamma_decay) == 5);
-  }
+  assert_always(fread(globals::time_step, sizeof(struct time), globals::ntstep + 1, gridsave_file) == (size_t)(globals::ntstep + 1));
 
   int timestep_in;
-  assert_always(fscanf(gridsave_file, "%d ", &timestep_in) == 1);
+  assert_always(fscanf(gridsave_file, " %d ", &timestep_in) == 1);
   assert_always(timestep_in == timestep);
 
   for (int mgi = 0; mgi < get_npts_model(); mgi++)
@@ -1730,18 +1725,15 @@ void write_grid_restart_data(const int timestep)
 
   FILE *gridsave_file = fopen_required(filename, "w");
 
-  fwrite(&globals::ntstep, sizeof(int), 1, gridsave_file);
+  assert_always(fwrite(&globals::ntstep, sizeof(int), 1, gridsave_file) == 1);
 
-  fprintf(gridsave_file, "%d ", globals::nprocs);
+  fprintf(gridsave_file, " %d ", globals::nprocs);
   fprintf(gridsave_file, "%d ", get_num_threads());
 
-  for (int nts = 0; nts < globals::ntstep; nts++)
-  {
-    fprintf(gridsave_file, "%la %la %la %la %la ", globals::time_step[nts].gamma_dep, globals::time_step[nts].positron_dep,
-            globals::time_step[nts].electron_dep, globals::time_step[nts].alpha_dep, globals::time_step[nts].gamma_decay);
-  }
+  assert_always(fwrite(
+    globals::time_step, sizeof(struct time), globals::ntstep + 1, gridsave_file) == (size_t)(globals::ntstep + 1));
 
-  fprintf(gridsave_file, "%d ", timestep);
+  fprintf(gridsave_file, " %d ", timestep);
 
   for (int mgi = 0; mgi < get_npts_model(); mgi++)
   {
