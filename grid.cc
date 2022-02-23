@@ -1730,7 +1730,7 @@ void write_grid_restart_data(const int timestep)
 
   FILE *gridsave_file = fopen_required(filename, "w");
 
-  fwrite(globals::ntstep, sizeof(int), 1, gridsave_file);
+  fwrite(&globals::ntstep, sizeof(int), 1, gridsave_file);
 
   fprintf(gridsave_file, "%d ", globals::nprocs);
   fprintf(gridsave_file, "%d ", get_num_threads());
