@@ -1645,7 +1645,7 @@ static void read_grid_restart_data(const int timestep)
   FILE *gridsave_file = fopen_required(filename, "r");
 
   int ntstep_in = -1;
-  assert_always(fscanf(gridsave_file, "%d ", &ntstep_in) == 1);
+  assert_always(fread(&ntstep_in, sizeof(int), 1, gridsave_file) == 1);
   assert_always(ntstep_in == globals::ntstep);
 
   int nprocs_in = -1;
@@ -1730,7 +1730,8 @@ void write_grid_restart_data(const int timestep)
 
   FILE *gridsave_file = fopen_required(filename, "w");
 
-  fprintf(gridsave_file, "%d ", globals::ntstep);
+  fwrite(globals::ntstep, sizeof(int), 1, gridsave_file);
+
   fprintf(gridsave_file, "%d ", globals::nprocs);
   fprintf(gridsave_file, "%d ", get_num_threads());
 
