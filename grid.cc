@@ -860,8 +860,8 @@ static void allocate_nonemptymodelcells(void)
 }
 
 
-static void density_1d_read(void)
-// Map 1D spherical model grid onto 3D propagation grid
+static void map_1dmodeltogrid(void)
+// Map 1D spherical model grid onto propagation grid
 {
   for (int cellindex = 0; cellindex < ngrid; cellindex++)
   {
@@ -905,8 +905,8 @@ static void density_1d_read(void)
 }
 
 
-static void density_2d_read(void)
-// Map 2D model grid onto 3D propagation grid
+static void map_2dmodeltogrid(void)
+// Map 2D cylindrical model onto propagation grid
 {
   for (int n = 0; n < ngrid; n++)
   {
@@ -955,6 +955,31 @@ static void density_2d_read(void)
     else
     {
       set_cell_modelgridindex(n, get_npts_model());
+    }
+  }
+}
+
+
+static void map_3dmodeltogrid(void)
+{
+  // propagation grid must match the input model grid exactly for 3D models
+  assert_always(ncoord_model[0] == ncoordgrid[0]);
+  assert_always(ncoord_model[1] == ncoordgrid[1]);
+  assert_always(ncoord_model[2] == ncoordgrid[2]);
+
+  for (int cellindex = 0; cellindex < ngrid; cellindex++)
+  {
+    // mgi and cellindex are interchangeable in this mode
+    const int mgi = cellindex;
+    modelgrid[mgi].initial_radial_pos = get_cellradialpos(cellindex);
+    const bool keepcell = (get_rhoinit(mgi) > 0);
+    if (keepcell)
+    {
+      set_cell_modelgridindex(cellindex, mgi);
+    }
+    else
+    {
+      set_cell_modelgridindex(cellindex, get_npts_model());
     }
   }
 }
@@ -1090,12 +1115,14 @@ static void read_model_headerline(
 
 
 static void read_2d3d_modelradioabundanceline(
-    const char *line,
+    std::ifstream &fmodel,
     const int mgi,
     const bool keepcell,
     std::vector<int> zlist,
     std::vector<int> alist)
 {
+  std::string line;
+  assert_always(std::getline(fmodel, line));
   std::istringstream ssline(line);
   double f56ni_model = 0.;
   double f56co_model = 0.;
@@ -1104,7 +1131,7 @@ static void read_2d3d_modelradioabundanceline(
   double f52fe_model = 0.;
   double f57ni_model = 0.;
   double f57co_model = 0.;
-  const int items_read = sscanf(line, "%lg %lg %lg %lg %lg %lg %lg",
+  const int items_read = sscanf(line.c_str(), "%lg %lg %lg %lg %lg %lg %lg",
     &ffegrp_model, &f56ni_model, &f56co_model, &f52fe_model, &f48cr_model, &f57ni_model, &f57co_model);
 
   if (items_read == 5 || items_read == 7)
@@ -1134,7 +1161,7 @@ static void read_2d3d_modelradioabundanceline(
 
       if (items_read == 7)
       {
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < items_read; i++)
         {
           double abundin = 0.;
           ssline >> abundin; // ignore
@@ -1151,7 +1178,7 @@ static void read_2d3d_modelradioabundanceline(
   else
   {
     printout("Unexpected number of values in model.txt. items_read = %d\n", items_read);
-    printout("line: %s\n", line);
+    printout("line: %s\n", line.c_str());
     abort();
   }
 }
@@ -1297,46 +1324,59 @@ static void read_1d_model(void)
 static void read_2d_model(void)
 // Read in a 2D axisymmetric spherical coordinate model
 {
-  FILE *fmodel = fopen_required("model.txt", "r");
+  std::ifstream fmodel("model.txt");
+  assert_always(fmodel.is_open());
+
+  std::string line;
 
   // 1st read the number of data points in the table of input model.
-  fscanf(fmodel, "%d %d", &ncoord_model[0], &ncoord_model[1]);  // r and z (cylindrical polar)
+  assert_always(get_noncommentline(fmodel, line));
+  std::stringstream(line) >> ncoord_model[0] >> ncoord_model[1]; // r and z (cylindrical polar)
 
   set_npts_model(ncoord_model[0] * ncoord_model[1]);
 
   // Now read the time (in days) at which the model is specified.
   double t_model_days;
-  fscanf(fmodel, "%lg", &t_model_days);
+  assert_always(get_noncommentline(fmodel, line));
+  std::stringstream(line) >> t_model_days;
   t_model = t_model_days * DAY;
 
-  // Now read in globals::vmax (in cm/s)
-  fscanf(fmodel, "%lg\n", &globals::vmax);
+  /// Now read in vmax for the model (in cm s^-1).
+  assert_always(get_noncommentline(fmodel, line));
+  std::stringstream(line) >> globals::vmax;
+
   dcoord1 = globals::vmax * t_model / ncoord_model[0]; //dr for input model
   dcoord2 = 2. * globals::vmax * t_model / ncoord_model[1]; //dz for input model
+
+  std::vector<int> zlist;
+  std::vector<int> alist;
+  std::streampos oldpos = fmodel.tellg();  // get position in case we need to undo getline
+  std::getline(fmodel, line);
+  if (lineiscommentonly(line))
+  {
+    read_model_headerline(line, zlist, alist);
+  }
+  else
+  {
+    fmodel.seekg(oldpos); // undo getline because it was data, not a header line
+  }
+
+  decay::init_nuclides(zlist, alist);
 
   // Now read in the model. Each point in the model has two lines of input.
   // First is an index for the cell then its r-mid point then its z-mid point
   // then its total mass density.
   // Second is the total FeG mass, initial 56Ni mass, initial 56Co mass
 
-  decay::init_nuclides(std::vector<int>(), std::vector<int>());
-
   int mgi = 0;
-  while (!feof(fmodel))
+  while (std::getline(fmodel, line))
   {
-    char line[2048] = "";
-    if (line != fgets(line, 2048, fmodel))
-    {
-      // no more lines to read in
-      break;
-    }
-
     int cellnumin;
     float cell_r_in;
     float cell_z_in;
     double rho_tmodel;
 
-    int items_read = sscanf(line, "%d %g %g %lg", &cellnumin, &cell_r_in, &cell_z_in, &rho_tmodel);
+    int items_read = sscanf(line.c_str(), "%d %g %g %lg", &cellnumin, &cell_r_in, &cell_z_in, &rho_tmodel);
     assert_always(items_read == 4);
 
     const int ncoord1 = ((cellnumin - 1) % ncoord_model[0]);
@@ -1352,12 +1392,7 @@ static void read_2d_model(void)
     set_rhoinit(mgi, rho_tmin);
     set_rho(mgi, rho_tmin);
 
-    if (line != fgets(line, 2048, fmodel))
-    {
-      printout("Read failed on second line for cell %d\n", mgi);
-      abort();
-    }
-    read_2d3d_modelradioabundanceline(line, mgi, true, std::vector<int>(), std::vector<int>());
+    read_2d3d_modelradioabundanceline(fmodel, mgi, true, std::vector<int>(), std::vector<int>());
 
     mgi++;
   }
@@ -1368,7 +1403,7 @@ static void read_2d_model(void)
     abort();
   }
 
-  fclose(fmodel);
+  fmodel.close();
 }
 
 
@@ -1402,7 +1437,7 @@ static void read_3d_model(void)
   std::stringstream(line) >> t_model_days;
   t_model = t_model_days * DAY;
 
-  /// Now read in globals::vmax for the model (in cm s^-1).
+  /// Now read in vmax for the model (in cm s^-1).
   assert_always(get_noncommentline(fmodel, line));
   std::stringstream(line) >> globals::vmax;
 
@@ -1437,8 +1472,6 @@ static void read_3d_model(void)
   int nonemptymgi = 0;
   while (std::getline(fmodel, line))
   {
-    std::istringstream ssline(line);
-
     int mgi_in;
     float cellpos_in[3];
     float rho_model;
@@ -1475,24 +1508,15 @@ static void read_3d_model(void)
 
     // in 3D cartesian, cellindex and modelgridindex are interchangeable
     const bool keepcell = (rho_model > 0);
-    if (keepcell)
-    {
-      set_cell_modelgridindex(mgi, mgi);
-      const double rho_tmin = rho_model * pow((t_model / globals::tmin), 3.);
-      set_rhoinit(mgi, rho_tmin);
-      set_rho(mgi, rho_tmin);
+    const double rho_tmin = rho_model * pow((t_model / globals::tmin), 3.);
+    set_rhoinit(mgi, rho_tmin);
+    set_rho(mgi, rho_tmin);
 
-      if (min_den > rho_model)
-      {
-        min_den = rho_model;
-      }
-    }
-    else
+    if (min_den > rho_model)
     {
-      set_cell_modelgridindex(mgi, get_npts_model());
+      min_den = rho_model;
     }
-
-    read_2d3d_modelradioabundanceline(line.c_str(), mgi, keepcell, zlist, alist);
+    read_2d3d_modelradioabundanceline(fmodel, mgi, keepcell, zlist, alist);
     if (keepcell)
     {
       nonemptymgi++;
@@ -1542,6 +1566,10 @@ static void calc_totmassradionuclides(void)
   int n1 = 0;
   for (int mgi = 0; mgi < get_npts_model(); mgi++)
   {
+    if (get_rhoinit(mgi) <= 0.)
+    {
+      continue;
+    }
     double cellvolume = 0.;
     if (get_model_type() == RHO_1D_READ)
     {
@@ -2022,8 +2050,9 @@ static void spherical1d_grid_setup(void)
   // in this mode, cellindex and modelgridindex are the same thing
   for (int cellindex = 0; cellindex < get_npts_model(); cellindex++)
   {
-    const double v_inner = cellindex > 0 ? vout_model[cellindex - 1] : 0.;
-    set_cell_modelgridindex(cellindex, cellindex);
+    const int mgi = cellindex;  // interchangeable in this mode
+    const double v_inner = mgi > 0 ? vout_model[mgi - 1] : 0.;
+    set_cell_modelgridindex(cellindex, mgi);
     cell[cellindex].pos_init[0] = v_inner * globals::tmin;
     cell[cellindex].pos_init[1] = 0.;
     cell[cellindex].pos_init[2] = 0.;
@@ -2084,25 +2113,16 @@ void grid_init(int my_rank)
 
   if (get_model_type() == RHO_1D_READ)
   {
-    density_1d_read();
+    map_1dmodeltogrid();
   }
   else if (get_model_type() == RHO_2D_READ)
   {
-    density_2d_read();
+    map_2dmodeltogrid();
   }
   else if (get_model_type() == RHO_3D_READ)
   {
     assert_always(grid_type == GRID_UNIFORM);
-    // propagation grid must match the input model grid exactly for 3D models
-    assert_always(ncoord_model[0] == ncoordgrid[0]);
-    assert_always(ncoord_model[1] == ncoordgrid[1]);
-    assert_always(ncoord_model[2] == ncoordgrid[2]);
-
-    for (int n = 0; n < ngrid; n++)
-    {
-      modelgrid[get_cell_modelgridindex(n)].initial_radial_pos = get_cellradialpos(n);
-    }
-    // cells with rho > 0 are allocated by the above function
+    map_3dmodeltogrid();
   }
   else
   {
