@@ -479,7 +479,10 @@ float get_modelinitradioabund(const int modelgridindex, const int z, const int a
   const int nucindex = decay::get_nuc_index(z, a);
   assert_always(decay::get_nuc_z(nucindex) >= 0); // check not FAKE_GAM_LINE_ID nuclide
 
-  assert_always(modelgrid[modelgridindex].initradioabund != NULL);
+  if (modelgrid[modelgridindex].initradioabund == NULL)
+  {
+    return 0.;
+  }
   return modelgrid[modelgridindex].initradioabund[nucindex];
 }
 
@@ -529,12 +532,15 @@ static void set_elem_stable_abund_from_total(const int mgi, const int element, c
 
   if (massfracstable < 0.)
   {
+    if ((isofracsum / elemabundance - 1.) > 1e-4)  // allow some roundoff error
+    {
       printout("WARNING: cell %d Z=%d element abundance is less than the sum of its radioisotope abundances \n",
                mgi, atomic_number);
       printout("  massfrac(Z) %g massfrac_radioisotopes(Z) %g\n", elemabundance, isofracsum);
-      assert_always(massfracstable >= -1e-3);  // result is allowed to be slightly negative due to roundoff error
       printout("  increasing elemental abundance to %g and setting stable isotopic abundance to zero\n", isofracsum);
-      massfracstable = 0.; // bring up to zero if negative
+    }
+    assert_always(massfracstable >= -1e-3);  // result is allowed to be slightly negative due to roundoff error
+    massfracstable = 0.; // bring up to zero if negative
   }
 
   modelgrid[mgi].initmassfracstable[element] = massfracstable;
@@ -841,11 +847,14 @@ static void allocate_nonemptymodelcells(void)
       nonemptymgi_of_mgi[mgi] = -1;
       set_rhoinit(mgi, 0.);
       set_rho(mgi, 0.);
-      for (int nucindex = 0; nucindex < decay::get_num_nuclides(); nucindex++)
+      if (modelgrid[mgi].initradioabund != NULL)
       {
-        const int z = decay::get_nuc_z(nucindex);
-        const int a = decay::get_nuc_a(nucindex);
-        set_modelinitradioabund(mgi, z, a, 0.);
+        for (int nucindex = 0; nucindex < decay::get_num_nuclides(); nucindex++)
+        {
+          const int z = decay::get_nuc_z(nucindex);
+          const int a = decay::get_nuc_a(nucindex);
+          set_modelinitradioabund(mgi, z, a, 0.);
+        }
       }
     }
   }
@@ -1870,6 +1879,10 @@ static void assign_initial_temperatures(void)
 
   for (int mgi = 0; mgi < get_npts_model(); mgi++)
   {
+    if (get_numassociatedcells(mgi) == 0)
+    {
+      continue;
+    }
     const double decayedenergy_per_mass = decay::get_endecay_per_ejectamass_t0_to_time_withexpansion(mgi, tstart);
 
     double T_initial = pow(CLIGHT / 4 / STEBO * pow(globals::tmin / tstart, 3) * get_rhoinit(mgi) * decayedenergy_per_mass, 1. / 4.);
@@ -2117,6 +2130,7 @@ void grid_init(int my_rank)
   }
   else if (get_model_type() == RHO_2D_READ)
   {
+    assert_always(grid_type == GRID_UNIFORM);
     map_2dmodeltogrid();
   }
   else if (get_model_type() == RHO_3D_READ)
