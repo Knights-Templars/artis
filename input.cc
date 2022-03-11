@@ -487,18 +487,14 @@ static transitiontable_entry *read_ion_transitions(
 {
   std::string line;
 
+  // will be autodetected from first table row. old format had an index column and no collstr or forbidden columns
+  bool oldformat = false;
+
   if (*tottransitions == 0)
   {
     for (int i = 0; i < tottransitions_in; i++)
     {
-      double A = 0;
-      double coll_str = -1.;
-      int lower = -1;
-      int upper = -1;
-      int intforbidden = 0;
       assert_always(getline(ftransitiondata, line));
-      const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower, &upper, &A, &coll_str, &intforbidden);
-      assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
     }
   }
   else
@@ -513,8 +509,27 @@ static transitiontable_entry *read_ion_transitions(
       double coll_str = -1.;
       int intforbidden = 0;
       assert_always(getline(ftransitiondata, line));
-      const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower_in, &upper_in, &A, &coll_str, &intforbidden);
-      assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
+      if (i == 0)
+      {
+        std::stringstream ss(line);
+        std::string word;
+        int word_count = 0;
+        while (ss >> word)
+        {
+          word_count++;
+        }
+        assert_always(word_count == 4 || word_count == 5);
+        oldformat = (word_count == 4);
+      }
+      if (!oldformat)
+      {
+        assert_always(sscanf(line.c_str(), "%d %d %lg %lg %d", &lower_in, &upper_in, &A, &coll_str, &intforbidden) == 5);
+      }
+      else
+      {
+        int transindex = 0; // not used
+        assert_always(sscanf(line.c_str(), "%d %d %d %lg", &transindex, &lower_in, &upper_in, &A) == 4);
+      }
       const int lower = lower_in - groundstate_index_in;
       const int upper = upper_in - groundstate_index_in;
       assert_always(lower >= 0);
@@ -1005,17 +1020,10 @@ static void read_atomicdata_files(void)
       std::string line;
       while (transdata_Z_in != Z || transdata_ionstage_in != ionstage)
       {
+        // skip over table (if tottransitions_in > 0)
         for (int i = 0; i < tottransitions_in; i++)
         {
-          int lower;
-          int upper;
-          double A;
-          double coll_str;
-          int intforbidden;
-
           assert_always(getline(ftransitiondata, line));
-          const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower, &upper, &A, &coll_str, &intforbidden);
-          assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
         }
         assert_always(get_noncommentline(ftransitiondata, line));
         assert_always(sscanf(line.c_str(), "%d %d %d", &transdata_Z_in, &transdata_ionstage_in, &tottransitions_in) == 3);
