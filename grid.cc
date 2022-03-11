@@ -999,7 +999,7 @@ static void abundances_read(void)
   const bool threedimensional = (get_model_type() == RHO_3D_READ);
 
   /// Open the abundances file
-  FILE *abundance_file = fopen_required("abundances.txt", "r");
+  std::ifstream abundance_file("abundances.txt");
 
   /// and process through the grid to read in the abundances per cell
   /// The abundance file should only contain information for non-empty
@@ -1008,27 +1008,16 @@ static void abundances_read(void)
   /// i.e. in total one integer and 30 floats.
 
   // loop over propagation cells for 3D models, or modelgrid cells
-  const int ncount = threedimensional ? ngrid : get_npts_model();
-  for (int n = 0; n < ncount; n++)
+  const int npts_model = get_npts_model();
+  for (int mgi = 0; mgi < npts_model; mgi++)
   {
-    const int mgi = threedimensional ? get_cell_modelgridindex(n) : n;
+    std::string line = "";
+    assert_always(getline(abundance_file, line));
+    std::istringstream ssline(line);
 
-    assert_always(!feof(abundance_file));
-    char line[8192] = "";
-    assert_always(line == fgets(line, 8192, abundance_file));
-    char *linepos = line;
-    int offset = 0;
-
-    int cellnumber = -1;
-    assert_always(sscanf(linepos, "%d%n", &cellnumber, &offset) == 1);
-    linepos += offset;
-
-    if (cellnumber != n + 1)
-    {
-      printout("[fatal] %s: grid cell mismatch ... abort\n", __func__);
-      printout("[fatal] n %d, cellnumber %d\n", n, cellnumber);
-      abort();
-    }
+    int cellnumberinput = -1;
+    assert_always(ssline >> cellnumberinput);
+    assert_always(cellnumberinput == mgi + 1)
 
     // the abundances.txt file specifies the elemental mass fractions for each model cell
     // (or proportial to mass frac, e.g. element densities because they will be normalised anyway)
@@ -1038,10 +1027,7 @@ static void abundances_read(void)
     for (int anumber = 1; anumber <= 150; anumber++)
     {
       abundances_in[anumber - 1] = 0.;
-      const int itemsread = sscanf(linepos, "%g%n", &abundances_in[anumber - 1], &offset);
-      linepos += offset;
-      // printout("%d %d %d %g\n", cellnumber, anumber, itemsread, abundances_in[anumber - 1]);
-      if (itemsread != 1)
+      if (!(ssline >> abundances_in[anumber - 1]))
       {
         assert_always(anumber > 1); // at least one element (hydrogen) should have been specified
         break;
@@ -1070,7 +1056,7 @@ static void abundances_read(void)
     }
   }
 
-  fclose(abundance_file);
+  abundance_file.close();
 }
 
 static void read_model_headerline(
