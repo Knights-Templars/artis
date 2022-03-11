@@ -488,7 +488,7 @@ static transitiontable_entry *read_ion_transitions(
   std::string line;
 
   // will be autodetected from first table row. old format had an index column and no collstr or forbidden columns
-  bool oldformat = false;
+  bool oldtransitionformat = false;
 
   if (*tottransitions == 0)
   {
@@ -514,14 +514,11 @@ static transitiontable_entry *read_ion_transitions(
         std::stringstream ss(line);
         std::string word;
         int word_count = 0;
-        while (ss >> word)
-        {
-          word_count++;
-        }
+        while (ss >> word) { word_count++; }
         assert_always(word_count == 4 || word_count == 5);
-        oldformat = (word_count == 4);
+        oldtransitionformat = (word_count == 4);
       }
-      if (!oldformat)
+      if (!oldtransitionformat)
       {
         assert_always(sscanf(line.c_str(), "%d %d %lg %lg %d", &lower_in, &upper_in, &A, &coll_str, &intforbidden) == 5);
       }
