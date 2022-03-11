@@ -480,19 +480,25 @@ static void read_ion_levels(
 
 
 static transitiontable_entry *read_ion_transitions(
-  FILE *transitiondata, const int tottransitions_in,
+  std::istream &ftransitiondata, const int tottransitions_in,
   int *tottransitions, transitiontable_entry *transitiontable,
   const int nlevels_requiretransitions, const int nlevels_requiretransitions_upperlevels,
   const int Z, const int ionstage)
 {
+  std::string line;
+
   if (*tottransitions == 0)
   {
     for (int i = 0; i < tottransitions_in; i++)
     {
-      double A, coll_str;
-      int lower,upper,intforbidden;
-      assert_always(fscanf(transitiondata, "%d %d %lg %lg %d\n", &lower, &upper, &A, &coll_str, &intforbidden) == 5);
-      //printout("index %d, lower %d, upper %d, A %g\n",transitionindex,lower,upper,A);
+      double A = 0;
+      double coll_str = -1.;
+      int lower = -1;
+      int upper = -1;
+      int intforbidden = 0;
+      assert_always(getline(ftransitiondata, line));
+      const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower, &upper, &A, &coll_str, &intforbidden);
+      assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
     }
   }
   else
@@ -501,12 +507,14 @@ static transitiontable_entry *read_ion_transitions(
     int prev_lower = 0;
     for (int i = 0; i < *tottransitions; i++)
     {
-      int lower_in;
-      int upper_in;
-      double A;
-      double coll_str;
-      int intforbidden;
-      assert_always(fscanf(transitiondata, "%d %d %lg %lg %d\n", &lower_in, &upper_in, &A, &coll_str, &intforbidden) == 5);
+      int lower_in = -1;
+      int upper_in = -1;
+      double A = 0;
+      double coll_str = -1.;
+      int intforbidden = 0;
+      assert_always(getline(ftransitiondata, line));
+      const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower_in, &upper_in, &A, &coll_str, &intforbidden);
+      assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
       const int lower = lower_in - groundstate_index_in;
       const int upper = upper_in - groundstate_index_in;
       assert_always(lower >= 0);
@@ -522,7 +530,9 @@ static transitiontable_entry *read_ion_transitions(
           // same lower level, but some upper levels were skipped over
           stoplevel = upper - 1;
           if (stoplevel >= nlevels_requiretransitions_upperlevels)
+          {
             stoplevel = nlevels_requiretransitions_upperlevels - 1;
+          }
         }
         else if ((lower > prev_lower) && prev_upper < (nlevels_requiretransitions_upperlevels - 1))
         {
@@ -537,7 +547,9 @@ static transitiontable_entry *read_ion_transitions(
         for (int tmplevel = prev_upper + 1; tmplevel <= stoplevel; tmplevel++)
         {
           if (tmplevel == prev_lower)
+          {
             continue;
+          }
           // printout("+adding transition index %d Z=%02d ionstage %d lower %d upper %d\n", i, Z, ionstage, prev_lower, tmplevel);
           (*tottransitions)++;
           transitiontable = (transitiontable_entry *) realloc(transitiontable, *tottransitions * sizeof(transitiontable_entry));
@@ -869,7 +881,7 @@ static void read_atomicdata_files(void)
     printout("[info] read_atomicdata: homogeneous abundances as defined in compositiondata.txt are active\n");
 
   /// open transition data file
-  FILE *transitiondata = fopen_required("transitiondata.txt", "r");
+  std::ifstream ftransitiondata("transitiondata.txt");
 
   int lineindex = 0;  ///counter to determine the total number of lines, initialisation
   int uniqueionindex = -1; // index into list of all ions of all elements
@@ -990,6 +1002,7 @@ static void read_atomicdata_files(void)
       int transdata_Z_in = -1;
       int transdata_ionstage_in = -1;
       int tottransitions_in = 0;
+      std::string line;
       while (transdata_Z_in != Z || transdata_ionstage_in != ionstage)
       {
         for (int i = 0; i < tottransitions_in; i++)
@@ -999,14 +1012,13 @@ static void read_atomicdata_files(void)
           double A;
           double coll_str;
           int intforbidden;
-          assert_always(fscanf(transitiondata, "%d %d %lg %lg %d\n", &lower, &upper, &A, &coll_str, &intforbidden) == 5);
+
+          assert_always(getline(ftransitiondata, line));
+          const int items_read = sscanf(line.c_str(), "%d %d %lg %lg %d", &lower, &upper, &A, &coll_str, &intforbidden);
+          assert_always(items_read == 3 || items_read == 5); // old format did not have coll_str or forbidden columns
         }
-        const int readtransdata = fscanf(transitiondata,"%d %d %d", &transdata_Z_in, &transdata_ionstage_in, &tottransitions_in);
-        if (readtransdata == EOF)
-        {
-          printout("End of file in transition data");
-          abort();
-        }
+        assert_always(get_noncommentline(ftransitiondata, line));
+        assert_always(sscanf(line.c_str(), "%d %d %d", &transdata_Z_in, &transdata_ionstage_in, &tottransitions_in) == 3);
       }
 
       printout("transdata header matched: transdata_Z_in %d, transdata_ionstage_in %d, tottransitions %d\n",
@@ -1049,7 +1061,7 @@ static void read_atomicdata_files(void)
       nlevels_requiretransitions = std::min(nlevelsmax, nlevels_requiretransitions);
       nlevels_requiretransitions_upperlevels = std::min(nlevelsmax, nlevels_requiretransitions_upperlevels);
 
-      transitiontable = read_ion_transitions(transitiondata, tottransitions_in, &tottransitions, transitiontable,
+      transitiontable = read_ion_transitions(ftransitiondata, tottransitions_in, &tottransitions, transitiontable,
         nlevels_requiretransitions, nlevels_requiretransitions_upperlevels, Z, ionstage);
 
       /// store the ions data to memory and set up the ions zeta and levellist
@@ -1110,7 +1122,7 @@ static void read_atomicdata_files(void)
     }
   }
   fclose(adata);
-  fclose(transitiondata);
+  ftransitiondata.close();
   fclose(compositiondata);
   printout("nbfcheck %d\n",nbfcheck);
   printout("heatingcheck %d\n",heatingcheck);
@@ -1828,7 +1840,13 @@ void input(int rank)
 bool lineiscommentonly(std::string &line)
 // return true for whitepace-only lines, and lines that are exclusively whitepace up to a '#' character
 {
-  for (unsigned int i = 0; i < line.find('#'); i++)
+  int searchlength = line.find('#');  // ignore anything to the right of a # character
+  if (searchlength < 0)
+  {
+    searchlength = line.length();
+  }
+
+  for (int i = 0; i < searchlength; i++)
   {
     if (line[i] != ' ')
     {
@@ -1839,20 +1857,27 @@ bool lineiscommentonly(std::string &line)
 }
 
 
+static bool getline(std::istream &input, std::string &line)
+// return true if line read, false if not (EOF)
+{
+  return !(!std::getline(input, line));
+}
+
+
 bool get_noncommentline(std::istream &input, std::string &line)
 // read the next line, skipping any comment lines beginning with '#'
 {
   while (true)
   {
-    bool linefound = !(!std::getline(input, line));
-    // printout("LINE: %s   commentonly: %s \n", line.c_str(), lineiscommentonly(line) ? "true" : "false");
-    if (linefound && !lineiscommentonly(line))
-    {
-      return true;
-    }
-    else if (!linefound)
+    bool linefound = getline(input, line);
+    printout("LINE: >%s<  linefound: %s commentonly: %s \n", line.c_str(), linefound ? "true" : "false", lineiscommentonly(line) ? "true" : "false");
+    if (!linefound)
     {
       return false;
+    }
+    else if (!lineiscommentonly(line))
+    {
+      return true;
     }
   }
 }
