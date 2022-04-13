@@ -894,7 +894,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 
   const double t_mid = globals::time_step[timestep].mid;
   const int nions = get_nions(element);
-  const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
+  const float elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
 
   printout("Solving for NLTE populations in cell %d at timestep %d NLTE iteration %d for element Z=%d (mass fraction %.2e, population %.2e)\n",
            modelgridindex, timestep, nlte_iter, atomic_number, grid::get_elem_abundance(modelgridindex, element),
