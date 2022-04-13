@@ -181,19 +181,20 @@ static int compare_excitation_lineindicies(const void *p1, const void *p2)
 __host__ __device__
 static double get_tot_nion(const int modelgridindex)
 {
-  return get_nntot(modelgridindex);
-  // double result = 0.;
-  // for (int element = 0; element < get_nelements(); element++)
-  // {
-  //   // alternative method is to add the ion populations
-  //   const int nions = get_nions(element);
-  //   for (ion = 0; ion < nions; ion++)
-  //   {
-  //      result += ionstagepop(modelgridindex,element,ion);
-  //   }
-  // }
-  //
-  // return result;
+  double result = 0.;
+  for (int element = 0; element < get_nelements(); element++)
+  {
+    result += grid::modelgrid[modelgridindex].composition[element].abundance / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
+
+    // alternative method is to add the ion populations
+    // const int nions = get_nions(element);
+    // for (ion = 0; ion < nions; ion++)
+    // {
+    //    result += ionstagepop(modelgridindex,element,ion);
+    // }
+  }
+
+  return result;
 }
 #endif
 
