@@ -704,7 +704,7 @@ static void set_element_pops_lte(const int modelgridindex, const int element)
   //   grid::modelgrid[modelgridindex].composition[element].partfunct[ion] = calculate_partfunct(element, ion, modelgridindex);
   //
   // const float nne = grid::get_nne(modelgridindex);
-  // const double nnelement = grid::get_elem_abundance(modelgridindex, element) / elements[element].get_elem_numberdens * grid::get_rho(modelgridindex);
+  // const double nnelement = grid::get_elem_abundance(modelgridindex, element) / elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
   // for (int ion = 0; ion < nions; ion++)
   // {
   //   double nnion;
@@ -893,10 +893,11 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 
   const double t_mid = globals::time_step[timestep].mid;
   const int nions = get_nions(element);
+  const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
 
   printout("Solving for NLTE populations in cell %d at timestep %d NLTE iteration %d for element Z=%d (mass fraction %.2e, population %.2e)\n",
            modelgridindex, timestep, nlte_iter, atomic_number, grid::get_elem_abundance(modelgridindex, element),
-           grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex));
+           grid::get_elem_abundance(modelgridindex, element) / elem_meanweight * grid::get_rho(modelgridindex));
 
   // LTE test, make sure binned radfield is off
   //grid::set_TR(modelgridindex,3000);
