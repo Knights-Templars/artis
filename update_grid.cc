@@ -43,10 +43,11 @@ static void write_to_estimators_file(FILE *estimators_file, const int mgi, const
   {
     const float T_e = grid::get_Te(mgi);
     const float nne = grid::get_nne(mgi);
+    const double Y_e = grid::get_electronfrac(mgi);
     //fprintf(estimators_file,"%d %g %g %g %g %d ",n,get_TR(n),grid::get_Te(n),get_W(n),get_TJ(n),grid::modelgrid[n].thick);
     //fprintf(estimators_file,"%d %g %g %g %g %g ",n,get_TR(n),grid::get_Te(n),get_W(n),get_TJ(n),grey_optical_depth);
-    fprintf(estimators_file, "timestep %d modelgridindex %d titeration %d TR %g Te %g W %g TJ %g grey_depth %g nne %g tdays %7.2f\n",
-            timestep, mgi, titer, grid::get_TR(mgi), T_e, grid::get_W(mgi), grid::get_TJ(mgi), grid::modelgrid[mgi].grey_depth, nne, globals::time_step[timestep].mid / DAY);
+    fprintf(estimators_file, "timestep %d modelgridindex %d titeration %d TR %g Te %g W %g TJ %g grey_depth %g nne %g Ye %g tdays %7.2f\n",
+            timestep, mgi, titer, grid::get_TR(mgi), T_e, grid::get_W(mgi), grid::get_TJ(mgi), grid::modelgrid[mgi].grey_depth, nne, Y_e, globals::time_step[timestep].mid / DAY);
     //fprintf(estimators_file,"%d %g %g %g %g %g %g %g
     //",n,get_TR(n),grid::get_Te(n),get_W(n),get_TJ(n),grey_optical_depth,grey_optical_deptha,compton_optical_depth);
 
