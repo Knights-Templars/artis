@@ -1816,7 +1816,7 @@ void nltepop_read_restart_data(FILE *restart_file)
 #ifdef MPI_ON
           if (globals::rank_in_node != 0)
           {
-            assert_always(fscanf(restart_file, "%*la ") == 0);  // discard value (master rank of this node will set it)
+            assert_always(fscanf(restart_file, "%*a ") == 0);  // discard value (master rank of this node will set it)
           }
           else
 #endif
