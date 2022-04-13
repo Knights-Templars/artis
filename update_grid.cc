@@ -1568,10 +1568,8 @@ double calculate_populations(const int modelgridindex)
     /// Now calculate the ground level populations in nebular approximation and store them to the grid
     for (int element = 0; element < get_nelements(); element++)
     {
-      const double abundance = grid::get_elem_abundance(modelgridindex,element);
-      const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
       /// calculate number density of the current element (abundances are given by mass)
-      const double nnelement = abundance / elem_meanweight * grid::get_rho(modelgridindex);
+      const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
       nne_tot += nnelement * get_element(element);
 
       const int nions = get_nions(element);
@@ -1581,7 +1579,7 @@ double calculate_populations(const int modelgridindex)
         double nnion;
         if (ion == 0)
           nnion = nnelement;
-        else if (abundance > 0.)
+        else if (nnelement > 0.)
           nnion = MINPOP;
         else
           nnion = 0.;
