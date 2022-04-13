@@ -250,8 +250,7 @@ jobs:
       if: always() && matrix.os != 'selfhosted'
       uses: actions/setup-python@v3
       with:
-        python-version: 3.9
-          cache: 'pip'
+        cache: 'pip'
 
     - name: Install artistools
       if: always()
