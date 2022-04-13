@@ -705,7 +705,7 @@ static void set_element_pops_lte(const int modelgridindex, const int element)
   //
   // const float nne = grid::get_nne(modelgridindex);
   // const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
-  // const double nnelement = grid::get_elem_abundance(modelgridindex, element) / elem_meanweight * grid::get_rho(modelgridindex);
+  // const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
   // for (int ion = 0; ion < nions; ion++)
   // {
   //   double nnion;
