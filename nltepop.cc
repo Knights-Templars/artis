@@ -704,8 +704,7 @@ static void set_element_pops_lte(const int modelgridindex, const int element)
   //   grid::modelgrid[modelgridindex].composition[element].partfunct[ion] = calculate_partfunct(element, ion, modelgridindex);
   //
   // const float nne = grid::get_nne(modelgridindex);
-  // const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
-  // const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
+  // const double nnelement = grid::get_elem_abundance(modelgridindex, element) / elements[element].get_elem_numberdens * grid::get_rho(modelgridindex);
   // for (int ion = 0; ion < nions; ion++)
   // {
   //   double nnion;
@@ -876,9 +875,8 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 // (ionisation balance follows from this too)
 {
   const int atomic_number = get_element(element);
-  const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
 
-  if (nnelement <= 0.)
+  if (grid::get_elem_abundance(modelgridindex, element) <= 0.)
   {
     //abundance of this element is zero, so do not store any NLTE populations
     printout("Not solving for NLTE populations in cell %d at timestep %d for element Z=%d due to zero abundance\n",
@@ -898,7 +896,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 
   printout("Solving for NLTE populations in cell %d at timestep %d NLTE iteration %d for element Z=%d (mass fraction %.2e, population %.2e)\n",
            modelgridindex, timestep, nlte_iter, atomic_number, grid::get_elem_abundance(modelgridindex, element),
-           nnelement);
+           grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex));
 
   // LTE test, make sure binned radfield is off
   //grid::set_TR(modelgridindex,3000);
@@ -993,7 +991,8 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
   gsl_vector_view first_row_view = gsl_matrix_row(rate_matrix, 0);
   gsl_vector_set_all(&first_row_view.vector, 1.0);
   // set first balance vector entry to the element population (all other entries will be zero)
-  gsl_vector_set(balance_vector, 0, nnelement);
+  const double element_population = grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
+  gsl_vector_set(balance_vector, 0, element_population);
 
   // calculate the normalisation factors and apply them to the matrix
   // columns and balance vector elements
@@ -1117,12 +1116,12 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 
 
       //double nne = grid::get_nne(modelgridindex);
-      //printout("  From ion fract, the ion pop should be %g\n", ionfract(element, ion, modelgridindex, nne)*nnelement);
-      //printout("  I think that the element population is: %g (from abundance %g and rho %g)\n", nnelement, grid::get_elem_abundance(modelgridindex,element), grid::get_rho(modelgridindex));
+      //printout("  From ion fract, the ion pop should be %g\n", ionfract(element, ion, modelgridindex, nne)*grid::get_elem_abundance(modelgridindex,element)/ elements[element].initstablemeannucmass * grid::get_rho(modelgridindex));
+      //printout("  I think that the element population is: %g (from abundance %g and rho %g)\n", grid::get_elem_abundance(modelgridindex,element)/elements[element].initstablemeannucmass*grid::get_rho(modelgridindex), grid::get_elem_abundance(modelgridindex,element), grid::get_rho(modelgridindex));
       //printout("  I currently think that the top ion is: %d\n", elements_uppermost_ion[tid][element]);
     }
 
-    const double elem_pop_abundance = nnelement;
+    const double elem_pop_abundance = grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
     const double elem_pop_matrix = gsl_blas_dasum(popvec);
     const double elem_pop_error_percent = fabs((elem_pop_abundance / elem_pop_matrix) - 1) * 100;
     if (elem_pop_error_percent > 1.0)
@@ -1584,8 +1583,8 @@ double solve_nlte_pops_ion(int element, int ion, int modelgridindex, int timeste
       //printout("Accordingly, my phi-factor is: %g\n", calculate_partfunct(element, ion, modelgridindex)*grid::modelgrid[modelgridindex].composition[element].groundlevelpop[ion]/stat_weight(element,ion,0)/gsl_vector_get(x,nlte_size-1)/nne);
       //printout("The ionization solver gives phi = %g\n", phi(element, ion, modelgridindex));
 
-      //printout("From ion fract, the lower and upper ion pops should be %g and %g\n", ionfract(element, ion, modelgridindex, nne)*nnelement, ionfract(element, ion+1, modelgridindex, nne)*nnelement);
-      //printout("I think that the element population is: %g (from %g and %g)\n", nnelement, grid::get_elem_abundance(modelgridindex,element), grid::get_rho(modelgridindex));
+      //printout("From ion fract, the lower and upper ion pops should be %g and %g\n", ionfract(element, ion, modelgridindex, nne)*grid::get_elem_abundance(modelgridindex,element)/ elements[element].initstablemeannucmass * grid::get_rho(modelgridindex), ionfract(element, ion+1, modelgridindex, nne)*grid::get_elem_abundance(modelgridindex,element)/ elements[element].initstablemeannucmass * grid::get_rho(modelgridindex));
+      //printout("I think that the element population is: %g (from %g and %g)\n", grid::get_elem_abundance(modelgridindex,element)/ elements[element].initstablemeannucmass * grid::get_rho(modelgridindex), grid::get_elem_abundance(modelgridindex,element), grid::get_rho(modelgridindex));
       //printout("I currently think that the top ion is: %d\n", elements_uppermost_ion[tid][element]);
 
       gsl_permutation_free(p);
