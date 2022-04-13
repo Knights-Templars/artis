@@ -704,7 +704,6 @@ static void set_element_pops_lte(const int modelgridindex, const int element)
   //   grid::modelgrid[modelgridindex].composition[element].partfunct[ion] = calculate_partfunct(element, ion, modelgridindex);
   //
   // const float nne = grid::get_nne(modelgridindex);
-  // const double elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
   // const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
   // for (int ion = 0; ion < nions; ion++)
   // {
@@ -878,7 +877,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
   const int atomic_number = get_element(element);
   const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
 
-  if (nnelement <= 0.)
+  if (grid::get_elem_abundance(modelgridindex, element) <= 0.)
   {
     //abundance of this element is zero, so do not store any NLTE populations
     printout("Not solving for NLTE populations in cell %d at timestep %d for element Z=%d due to zero abundance\n",
@@ -993,7 +992,8 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
   gsl_vector_view first_row_view = gsl_matrix_row(rate_matrix, 0);
   gsl_vector_set_all(&first_row_view.vector, 1.0);
   // set first balance vector entry to the element population (all other entries will be zero)
-  gsl_vector_set(balance_vector, 0, nnelement);
+  const double element_population = grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
+  gsl_vector_set(balance_vector, 0, element_population);
 
   // calculate the normalisation factors and apply them to the matrix
   // columns and balance vector elements
@@ -1122,7 +1122,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
       //printout("  I currently think that the top ion is: %d\n", elements_uppermost_ion[tid][element]);
     }
 
-    const double elem_pop_abundance = nnelement;
+    const double elem_pop_abundance = grid::get_elem_abundance(modelgridindex, element) / globals::elements[element].initstablemeannucmass * grid::get_rho(modelgridindex);
     const double elem_pop_matrix = gsl_blas_dasum(popvec);
     const double elem_pop_error_percent = fabs((elem_pop_abundance / elem_pop_matrix) - 1) * 100;
     if (elem_pop_error_percent > 1.0)
