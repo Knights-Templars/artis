@@ -894,11 +894,11 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
 
   const double t_mid = globals::time_step[timestep].mid;
   const int nions = get_nions(element);
-  const float elem_meanweight = grid::get_element_meanweight(modelgridindex, element);
+  const double nnelement = grid::get_elem_numberdens(modelgridindex, element);
 
   printout("Solving for NLTE populations in cell %d at timestep %d NLTE iteration %d for element Z=%d (mass fraction %.2e, population %.2e)\n",
            modelgridindex, timestep, nlte_iter, atomic_number, grid::get_elem_abundance(modelgridindex, element),
-           grid::get_elem_abundance(modelgridindex, element) / elem_meanweight * grid::get_rho(modelgridindex));
+           nnelement);
 
   // LTE test, make sure binned radfield is off
   //grid::set_TR(modelgridindex,3000);
@@ -993,8 +993,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
   gsl_vector_view first_row_view = gsl_matrix_row(rate_matrix, 0);
   gsl_vector_set_all(&first_row_view.vector, 1.0);
   // set first balance vector entry to the element population (all other entries will be zero)
-  const double element_population = grid::get_elem_abundance(modelgridindex, element) / elem_meanweight * grid::get_rho(modelgridindex);
-  gsl_vector_set(balance_vector, 0, element_population);
+  gsl_vector_set(balance_vector, 0, nnelement);
 
   // calculate the normalisation factors and apply them to the matrix
   // columns and balance vector elements
@@ -1123,7 +1122,7 @@ void solve_nlte_pops_element(const int element, const int modelgridindex, const 
       //printout("  I currently think that the top ion is: %d\n", elements_uppermost_ion[tid][element]);
     }
 
-    const double elem_pop_abundance = grid::get_elem_abundance(modelgridindex, element) / elem_meanweight * grid::get_rho(modelgridindex);
+    const double elem_pop_abundance = nnelement;
     const double elem_pop_matrix = gsl_blas_dasum(popvec);
     const double elem_pop_error_percent = fabs((elem_pop_abundance / elem_pop_matrix) - 1) * 100;
     if (elem_pop_error_percent > 1.0)
