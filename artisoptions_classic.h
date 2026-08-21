@@ -10,7 +10,7 @@
 
 #include "constants.h"
 
-constexpr int MPKTS = 100000;
+constexpr int MPKTS = 1000000;
 
 constexpr std::optional<GridType> GRID_TYPE_OVERRIDE;
 constexpr int CUBOID_NCOORDGRID_X = 100;
@@ -20,13 +20,22 @@ constexpr bool FORCE_SPHERICAL_ESCAPE_SURFACE = false;
 
 constexpr int NLTEITER = 30;
 
-constexpr int ION_NLEVELS_EXCITED_NLTE(int element_z, int ionstage) { return 0; }
+constexpr int ION_NLEVELS_EXCITED_NLTE(int element_z, int ionstage) {
+  if (element_z == 26 && ionstage == 2) {
+    return 197;
+  }
+  return 80;
+}
 
-constexpr bool LTEPOP_EXCITATION_USE_TJ = true;
+constexpr bool LTEPOP_EXCITATION_USE_TJ = false;
+constexpr bool LTEPOP_EXCITATION_USE_TJ = false;
 
 constexpr bool FORCE_SAHA_ION_BALANCE(int element_z) { return false; }
 
 constexpr bool SINGLE_LEVEL_TOP_ION = true;
+constexpr bool SINGLE_LEVEL_TOP_ION = false;
+
+constexpr bool SINGLE_GROUND_LEVEL = false;
 
 constexpr int NLEVELS_REQUIRETRANSITIONS(int Z, int ionstage) { return 0; }
 
@@ -92,9 +101,16 @@ constexpr double NLTE_LIMIT_ION_STAGES_MAX_LEVELPOP_OVER_ELEMENTPOP_REMOVE_ION =
 
 constexpr bool NLTE_USE_GTH_SOLVER = false;
 
-constexpr bool NT_ON = false;
+constexpr bool NT_ON = true;
 
 constexpr bool NT_SOLVE_SPENCERFANO = false;
+constexpr bool NT_SOLVE_SPENCERFANO = true;
+
+constexpr int SFPTS = 4096;
+
+constexpr double SF_EMAX = 16000;
+
+constexpr double SF_EMIN = 0.1;
 
 constexpr int SF_MAX_TIMESTEPS_BETWEEN_SOLUTIONS = 0;
 
@@ -105,7 +121,7 @@ constexpr int NTEXCITATION_MAXNLEVELS_UPPER = 250;
 
 constexpr int MAX_NT_EXCITATIONS_STORED = 25000;
 
-constexpr bool NT_EXCITATION_ON = false;
+constexpr bool NT_EXCITATION_ON = true;
 
 constexpr bool NT_USE_VALENCE_IONPOTENTIAL = false;
 
@@ -113,15 +129,19 @@ constexpr int NT_MAX_AUGER_ELECTRONS = 2;
 
 constexpr bool SF_AUGER_CONTRIBUTION_ON = true;
 
-constexpr double TEMPERATURE_SOLVER_ACCURACY = 1e-2;
+constexpr bool SF_AUGER_CONTRIBUTION_DISTRIBUTE_EN = false;
+
+constexpr bool NT_WORKFUNCTION_USE_SHELL_OCCUPANCY_FILE = false;
+
+constexpr double TEMPERATURE_SOLVER_ACCURACY = 1e-3;
 
 constexpr bool USE_RELATIVISTIC_DOPPLER_SHIFT = false;
 
 constexpr bool USE_CALCULATED_MEANATOMICWEIGHT = false;
 
-constexpr bool WRITE_EMISSIONABSORPTION_SPEC_AT_END = false;
+constexpr bool WRITE_EMISSIONABSORPTION_SPEC_AT_END = true;
 
-constexpr bool KEEP_ESCAPED_GAMMAS = true;
+constexpr bool KEEP_ESCAPED_GAMMAS = false;
 
 constexpr TimeStepSizeMethod TIMESTEP_SIZE_METHOD = TimeStepSizeMethod::LOGARITHMIC;
 

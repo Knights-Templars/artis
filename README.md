@@ -48,6 +48,10 @@ An early version of the code is described in [Sim (2007)](https://ui.adsabs.harv
 The ARTIS source code is available under a [BSD 3-Clause license](https://github.com/artis-mcrt/artis/blob/main/LICENSE), which requires attribution and preservation of copyright notices on any substantial copies. If you find the ARTIS code useful in any way, we request that you cite us as described above and star the repository to help show impact in funding proposals.
 
 ## Setting up production runs on Linux
+
+See [NEBULAR_PHASE.md](NEBULAR_PHASE.md) for a nebular supernova example.
+The guide traces the main functions and gives spectrum checks.
+
 We recommend retaining the exact source code and Git metadata within each simulation folder for future reference (i.e., don't just copy the executables).
 
 Clone the source code repository from the release branch:
